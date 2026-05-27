@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gym Equipment Analyzer</title>
+<style>
+  /* ─── Reset & Variables ─── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d2e;
+    --surface-2: #242840;
+    --text: #e8eaed;
+    --text-dim: #9aa0b0;
+    --accent: #4fc3f7;
+    --accent-glow: rgba(79, 195, 247, 0.3);
+    --green: #66bb6a;
+    --orange: #ffa726;
+    --red: #ef5350;
+    --radius: 14px;
+    --radius-sm: 10px;
+    --shadow: 0 8px 32px rgba(0,0,0,.4);
+    --max-content: 1200px;
+  }
+  html { font-size: 16px; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 0 0 60px 0;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ─── Header ─── */
+  .header {
+    background: linear-gradient(135deg, #1a1d2e 0%, #242840 100%);
+    padding: 24px 20px 20px;
+    text-align: center;
+    border-bottom: 1px solid rgba(255,255,255,.06);
+  }
+  .header h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+  .header h1 span { color: var(--accent); }
+  .header p {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+
+  /* ─── Main Container ─── */
+  .container {
+    max-width: var(--max-content);
+    margin: 0 auto;
+    padding: 0 16px;
+  }
+
+  /* ─── Camera / Upload Toggle ─── */
+  .camera-toggle-area {
+    display: flex;
+    gap: 8px;
+    margin: 20px 0 12px;
+  }
+  .camera-toggle-area button {
+    flex: 1;
+    padding: 12px;
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all .2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .camera-toggle-area button.active {
+    background: var(--accent);
+    color: #000;
+    border-color: var(--accent);
+  }
+  .camera-toggle-area button:hover:not(.active) {
+    background: var(--surface-2);
+  }
+
+  /* ─── Upload Zone ─── */
+  .upload-zone {
+    background: var(--surface);
+    border: 2px dashed rgba(79,195,247,.3);
+    border-radius: var(--radius);
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all .3s;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .upload-zone:hover, .upload-zone.dragover {
+    border-color: var(--accent);
+    background: var(--surface-2);
+  }
+  .upload-zone.has-image {
+    padding: 8px;
+    border-style: solid;
+    border-color: var(--surface-2);
+    cursor: default;
+  }
+  .upload-zone .icon { font-size: 3rem; margin-bottom: 12px; opacity: .6; }
+  .upload-zone .label { font-size: 1rem; color: var(--text-dim); }
+  .upload-zone .sub-label { font-size: 0.8rem; color: var(--text-dim); opacity: .6; margin-top: 4px; }
+  .upload-zone input[type="file"] { display: none; }
+  .upload-zone img.preview {
+    width: 100%;
+    max-height: 400px;
+    object-fit: contain;
+    border-radius: var(--radius-sm);
+    display: block;
+  }
+  .upload-zone .retake-btn {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: rgba(0,0,0,.6);
+    backdrop-filter: blur(8px);
+    border: none;
+    color: white;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    font-size: 1.2rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: .2s;
+  }
+  .upload-zone .retake-btn:hover { background: rgba(0,0,0,.8); }
+
+  /* ─── Video Container ─── */
+  #video-container {
+    display: none;
+    background: var(--surface);
+    border-radius: var(--radius);
+    overflow: hidden;
+    position: relative;
+    margin-bottom: 16px;
+  }
+  #video-container video {
+    width: 100%;
+    display: block;
+    max-height: 500px;
+    object-fit: contain;
+    background: #000;
+  }
+  #video-container .capture-bar {
+    display: flex;
+    gap: 8px;
+    padding: 12px;
+    justify-content: center;
+    background: var(--surface-2);
+  }
+  #video-container .capture-bar button {
+    padding: 10px 24px;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: .2s;
+  }
+  #video-container .capture-bar .capture-btn { background: var(--accent); color: #000; }
+  #video-container .capture-bar .capture-btn:hover { opacity: .85; }
+  #video-container .capture-bar .switch-btn {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid rgba(255,255,255,.1);
+  }
+  #video-container .capture-bar .switch-btn:hover { background: var(--surface-2); }
+
+  /* ─── Analyze Button ─── */
+  .analyze-area { margin-bottom: 20px; }
+  .analyze-btn {
+    width: 100%;
+    max-width: 500px;
+    display: block;
+    margin: 0 auto;
+    padding: 16px;
+    border: none;
+    border-radius: var(--radius);
+    background: linear-gradient(135deg, #4fc3f7, #29b6f6);
+    color: #000;
+    font-size: 1.05rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all .2s;
+    box-shadow: 0 4px 20px rgba(79,195,247,.25);
+  }
+  .analyze-btn:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
+  .analyze-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 28px rgba(79,195,247,.35);
+  }
+  .analyze-btn .spinner {
+    display: none;
+    width: 20px; height: 20px;
+    border: 2px solid rgba(0,0,0,.2);
+    border-top-color: #000;
+    border-radius: 50%;
+    animation: spin .6s linear infinite;
+    margin: 0 auto;
+  }
+  .analyze-btn.loading .spinner { display: block; }
+  .analyze-btn.loading .btn-text { display: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ─── Results ─── */
+  .results { display: none; }
+  .results.visible { display: block; }
+
+  /* ─── Equipment Grid ─── */
+  .equipment-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+    animation: fadeUp .4s ease;
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .result-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow);
+  }
+
+  .result-card .equipment-name {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .result-card .equipment-name .badge {
+    display: inline-block;
+    font-size: 0.65rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 20px;
+    vertical-align: middle;
+    margin-left: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .badge.free_weight { background: #e3f2fd; color: #1565c0; }
+  .badge.machine { background: #f3e5f5; color: #7b1fa2; }
+  .badge.cardio { background: #e8f5e9; color: #2e7d32; }
+  .badge.cable { background: #fff3e0; color: #e65100; }
+  .badge.bodyweight { background: #fce4ec; color: #c62828; }
+
+  .tag-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .tag {
+    background: var(--surface-2);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    color: var(--text-dim);
+  }
+  .tag.muscle {
+    background: rgba(102,187,106,.15);
+    color: var(--green);
+    border: 1px solid rgba(102,187,106,.2);
+  }
+  .tag.mistake {
+    background: rgba(239,83,80,.12);
+    color: var(--red);
+    border: 1px solid rgba(239,83,80,.2);
+  }
+  .tag.safety {
+    background: rgba(255,167,38,.12);
+    color: var(--orange);
+    border: 1px solid rgba(255,167,38,.2);
+  }
+  .tag.difficulty { opacity: .8; }
+
+  /* ─── Exercise Card ─── */
+  .exercise-card {
+    background: var(--surface-2);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    margin-bottom: 12px;
+    border-left: 3px solid var(--accent);
+  }
+  .exercise-card:last-child { margin-bottom: 0; }
+  .exercise-card h3 {
+    font-size: 1rem;
+    margin-bottom: 10px;
+    color: var(--accent);
+  }
+  .video-wrapper {
+    position: relative;
+    width: 100%;
+    padding-bottom: 56.25%;
+    margin-bottom: 12px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #000;
+  }
+  .video-wrapper iframe {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    border: 0;
+  }
+  .exercise-card .step-list {
+    list-style: none;
+    counter-reset: step-counter;
+  }
+  .exercise-card .step-list li {
+    counter-increment: step-counter;
+    padding: 5px 0 5px 32px;
+    position: relative;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+  .exercise-card .step-list li::before {
+    content: counter(step-counter);
+    position: absolute;
+    left: 0; top: 5px;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #000;
+    font-size: 0.72rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .exercise-card .section-label {
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    opacity: .6;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 10px 0 4px;
+  }
+
+  /* ─── Safety Box ─── */
+  .safety-box {
+    background: rgba(255,167,38,.08);
+    border: 1px solid rgba(255,167,38,.2);
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    margin-top: 12px;
+  }
+  .safety-box h4 {
+    color: var(--orange);
+    font-size: 0.85rem;
+    margin-bottom: 6px;
+  }
+  .safety-box ul { list-style: none; padding: 0; }
+  .safety-box ul li {
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    padding: 3px 0 3px 20px;
+    position: relative;
+  }
+  .safety-box ul li::before {
+    content: "⚠";
+    position: absolute;
+    left: 0;
+  }
+
+  /* ─── Error ─── */
+  .error-box {
+    background: rgba(239,83,80,.1);
+    border: 1px solid rgba(239,83,80,.2);
+    border-radius: var(--radius);
+    padding: 16px;
+    color: var(--red);
+    text-align: center;
+    font-size: 0.9rem;
+  }
+
+  /* ─── Loading Overlay ─── */
+  .loading-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(15, 17, 23, 0.92);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    animation: fadeIn .25s ease;
+  }
+  .loading-overlay.visible {
+    display: flex;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  .loading-overlay .load-spinner {
+    width: 56px;
+    height: 56px;
+    border: 4px solid rgba(79, 195, 247, 0.15);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  .loading-overlay .load-text {
+    color: var(--text);
+    font-size: 1.1rem;
+    font-weight: 600;
+    text-align: center;
+  }
+  .loading-overlay .load-sub {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    text-align: center;
+    max-width: 300px;
+    line-height: 1.5;
+    margin-top: -8px;
+  }
+  .loading-overlay .load-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 4px;
+  }
+  .loading-overlay .load-steps span {
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    opacity: 0.6;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all .3s;
+  }
+  .loading-overlay .load-steps span.active {
+    opacity: 1;
+    color: var(--text);
+  }
+  .loading-overlay .load-steps span.active::before {
+    content: "🔍";
+  }
+  .loading-overlay .load-steps span::before {
+    content: "○";
+    width: 16px;
+    display: inline-block;
+  }
+  .loading-overlay .load-steps span.done::before {
+    content: "✅";
+  }
+
+  /* ─── Empty State ─── */
+  .empty-state {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+    text-align: center;
+    padding: 60px 20px;
+    line-height: 1.6;
+  }
+  .empty-state .emoji { font-size: 2.5rem; margin-bottom: 12px; }
+
+  /* ─── Vision Description ─── */
+  .vision-desc {
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    background: var(--surface-2);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+  .vision-desc strong { color: var(--text); }
+
+  .equipment-count-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, rgba(79,195,247,.2), rgba(79,195,247,.05));
+    border: 1px solid rgba(79,195,247,.3);
+    color: var(--accent);
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 20px;
+    margin-bottom: 14px;
+  }
+
+  /* ─── RESPONSIVE BREAKPOINTS ─── */
+
+  /* Tablet (≥600px) */
+  @media (min-width: 600px) {
+    .equipment-grid { grid-template-columns: repeat(2, 1fr); }
+    .container { padding: 0 24px; }
+    .header h1 { font-size: 1.8rem; }
+    .result-card .equipment-name { font-size: 1.3rem; }
+  }
+
+  /* Desktop (≥960px) */
+  @media (min-width: 960px) {
+    .equipment-grid { grid-template-columns: repeat(3, 1fr); }
+    .container { padding: 0 32px; }
+    .header h1 { font-size: 2rem; }
+    .upload-zone { padding: 60px 20px; }
+    .upload-zone.has-image { padding: 8px; }
+  }
+
+  /* Extra-large (≥1200px) */
+  @media (min-width: 1200px) {
+    .equipment-grid { grid-template-columns: repeat(4, 1fr); }
+  }
+
+  /* Small phone (≤400px) */
+  @media (max-width: 400px) {
+    .header h1 { font-size: 1.2rem; }
+    .result-card .equipment-name { font-size: 1.2rem; }
+    .exercise-card { padding: 12px; }
+    .result-card { padding: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🏋️ Gym<span>Analyzer</span></h1>
+  <p>Snap a photo — get instant exercise instructions &amp; demo videos</p>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loading-overlay" class="loading-overlay">
+  <div class="load-spinner"></div>
+  <div class="load-text">🔍 Analyzing your image...</div>
+  <div class="load-sub">Cloud AI is identifying every piece of equipment</div>
+  <div class="load-steps" id="load-steps">
+    <span id="ls-1">Sending image to AI vision model</span>
+    <span id="ls-2">Identifying equipment in photo</span>
+    <span id="ls-3">Fetching exercise instructions &amp; videos</span>
+    <span id="ls-4">Building your results...</span>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- Camera / Upload Toggle -->
+<div class="camera-toggle-area">
+  <button id="btn-upload" class="active" onclick="switchMode('upload')">📁 Upload Photo</button>
+  <button id="btn-camera" onclick="switchMode('camera')">📸 Use Camera</button>
+</div>
+
+<!-- Upload Zone -->
+<div id="upload-zone" class="upload-zone" onclick="document.getElementById('file-input').click()">
+  <div id="upload-placeholder">
+    <div class="icon">📷</div>
+    <div class="label">Tap to take or upload a photo</div>
+    <div class="sub-label">of any gym equipment</div>
+  </div>
+  <img id="preview-img" class="preview" style="display:none" alt="Preview">
+  <button class="retake-btn" id="retake-btn" style="display:none" onclick="event.stopPropagation();resetUpload()">✕</button>
+  <input type="file" id="file-input" accept="image/*" capture="environment" onchange="handleFile(event)">
+</div>
+
+<!-- Live Camera -->
+<div id="video-container">
+  <video id="video" autoplay playsinline></video>
+  <div class="capture-bar">
+    <button class="switch-btn" onclick="switchCamera()">🔄 Flip</button>
+    <button class="capture-btn" onclick="captureFrame()">📸 Capture</button>
+  </div>
+</div>
+
+<canvas id="canvas" style="display:none"></canvas>
+
+<!-- Analyze Button -->
+<div class="analyze-area">
+  <button class="analyze-btn" id="analyze-btn" disabled onclick="analyzeImage()">
+    <span class="btn-text">🔍 Analyze Equipment</span>
+    <span class="spinner"></span>
+  </button>
+</div>
+
+<!-- Empty State -->
+<div id="empty-state" class="empty-state">
+  <div class="emoji">🤔</div>
+  <p>Take or upload a photo of gym equipment — dumbbells, barbells, machines, benches, or anything in the gym.</p>
+  <p style="margin-top:12px;font-size:0.8rem;opacity:0.5">The AI will identify it and show you how to use it properly with demo videos.</p>
+</div>
+
+<!-- Results -->
+<div id="results" class="results"></div>
+
+</div><!-- /container -->
+
+<script>
+  // ─── State ───
+  let currentMode = 'upload';
+  let currentImageData = null;
+  let stream = null;
+  let facingMode = 'environment';
+
+  // ─── DOM refs ───
+  const uploadZone = document.getElementById('upload-zone');
+  const uploadPlaceholder = document.getElementById('upload-placeholder');
+  const previewImg = document.getElementById('preview-img');
+  const retakeBtn = document.getElementById('retake-btn');
+  const fileInput = document.getElementById('file-input');
+  const videoContainer = document.getElementById('video-container');
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('canvas');
+  const analyzeBtn = document.getElementById('analyze-btn');
+  const resultsDiv = document.getElementById('results');
+  const emptyState = document.getElementById('empty-state');
+  const btnUpload = document.getElementById('btn-upload');
+  const btnCamera = document.getElementById('btn-camera');
+
+  // ─── Mode switching ───
+  function switchMode(mode) {
+    if (mode === currentMode) return;
+    currentMode = mode;
+    btnUpload.classList.toggle('active', mode === 'upload');
+    btnCamera.classList.toggle('active', mode === 'camera');
+    if (mode === 'upload') {
+      stopCamera();
+      videoContainer.style.display = 'none';
+      uploadZone.style.display = 'block';
+      updateAnalyzeBtn();
+    } else {
+      uploadZone.style.display = 'none';
+      videoContainer.style.display = 'block';
+      startCamera();
+      analyzeBtn.disabled = true;
+    }
+  }
+
+  // ─── Camera ───
+  async function startCamera() {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } }
+      });
+      video.srcObject = stream;
+      analyzeBtn.disabled = true;
+    } catch (err) {
+      console.error('Camera error:', err);
+      switchMode('upload');
+      alert('Could not access camera. Please upload an image instead.');
+    }
+  }
+
+  function stopCamera() {
+    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+  }
+
+  function switchCamera() {
+    facingMode = facingMode === 'environment' ? 'user' : 'environment';
+    stopCamera();
+    startCamera();
+  }
+
+  function captureFrame() {
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    currentImageData = canvas.toDataURL('image/jpeg', 0.9);
+    stopCamera();
+    videoContainer.style.display = 'none';
+    uploadZone.style.display = 'block';
+    uploadPlaceholder.style.display = 'none';
+    previewImg.src = currentImageData;
+    previewImg.style.display = 'block';
+    retakeBtn.style.display = 'flex';
+    emptyState.style.display = 'none';
+    resultsDiv.classList.remove('visible');
+    resultsDiv.style.display = 'none';
+    currentMode = 'upload';
+    btnUpload.classList.add('active');
+    btnCamera.classList.remove('active');
+    updateAnalyzeBtn();
+  }
+
+  // ─── File upload ───
+  function handleFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      currentImageData = evt.target.result;
+      uploadPlaceholder.style.display = 'none';
+      previewImg.src = currentImageData;
+      previewImg.style.display = 'block';
+      retakeBtn.style.display = 'flex';
+      emptyState.style.display = 'none';
+      resultsDiv.classList.remove('visible');
+      resultsDiv.style.display = 'none';
+      updateAnalyzeBtn();
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function resetUpload() {
+    currentImageData = null;
+    uploadPlaceholder.style.display = 'block';
+    previewImg.style.display = 'none';
+    retakeBtn.style.display = 'none';
+    fileInput.value = '';
+    resultsDiv.classList.remove('visible');
+    resultsDiv.style.display = 'none';
+    emptyState.style.display = 'block';
+    updateAnalyzeBtn();
+  }
+
+  // ─── Drag & drop ───
+  uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+  uploadZone.addEventListener('dragleave', () => { uploadZone.classList.remove('dragover'); });
+  uploadZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadZone.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+      fileInput.files = e.dataTransfer.files;
+      handleFile({ target: { files: [file] } });
+    }
+  });
+
+  function updateAnalyzeBtn() {
+    analyzeBtn.disabled = !currentImageData;
+    analyzeBtn.classList.remove('loading');
+  }
+
+  // ─── Loading overlay ───
+  const loadingOverlay = document.getElementById('loading-overlay');
+  const loadSteps = {
+    1: document.getElementById('ls-1'),
+    2: document.getElementById('ls-2'),
+    3: document.getElementById('ls-3'),
+    4: document.getElementById('ls-4'),
+  };
+
+  function resetLoadingSteps() {
+    for (let i = 1; i <= 4; i++) {
+      loadSteps[i].className = '';
+    }
+  }
+
+  function advanceLoadingStep(step) {
+    for (let i = 1; i <= 4; i++) {
+      if (i < step) loadSteps[i].className = 'done';
+      else if (i === step) loadSteps[i].className = 'active';
+      else loadSteps[i].className = '';
+    }
+  }
+
+  function showLoadingOverlay() {
+    resetLoadingSteps();
+    advanceLoadingStep(1);
+    loadingOverlay.classList.add('visible');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function hideLoadingOverlay() {
+    loadingOverlay.classList.remove('visible');
+    document.body.style.overflow = '';
+  }
+
+  // ─── Analysis ───
+  async function analyzeImage() {
+    if (!currentImageData) return;
+
+    showLoadingOverlay();
+
+    try {
+      // Step 1-2: Prepare image
+      advanceLoadingStep(2);
+      // Yield to let the browser paint the overlay
+      await new Promise(r => setTimeout(r, 300));
+      const resp = await fetch(currentImageData);
+      const blob = await resp.blob();
+      const formData = new FormData();
+      formData.append('image', blob, 'equipment.jpg');
+
+      // Step 3: Sending to AI
+      advanceLoadingStep(3);
+      await new Promise(r => setTimeout(r, 400));
+
+      const result = await fetch('/analyze', { method: 'POST', body: formData });
+
+      // Step 4: Building results
+      advanceLoadingStep(4);
+      await new Promise(r => setTimeout(r, 300));
+
+      const data = await result.json();
+      hideLoadingOverlay();
+      emptyState.style.display = 'none';
+      renderResults(data);
+    } catch (err) {
+      hideLoadingOverlay();
+      emptyState.style.display = 'none';
+      resultsDiv.innerHTML = `<div class="error-box" style="max-width:600px;margin:0 auto">❌ Analysis failed. Check connection and try again.<br><small>${err.message}</small></div>`;
+      resultsDiv.style.display = 'block';
+      resultsDiv.classList.add('visible');
+    }
+  }
+
+  // ─── Render ───
+  function renderExerciseCard(ex) {
+    let h = `<div class="exercise-card"><h3>${ex.name}</h3>`;
+    if (ex.video_id) {
+      h += `<div class="video-wrapper"><iframe src="https://www.youtube-nocookie.com/embed/${ex.video_id}?rel=0&modestbranding=1" title="${ex.name}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>`;
+    }
+    if (ex.muscles_worked && ex.muscles_worked.length) {
+      h += `<div class="section-label">Muscles Targeted</div><div class="tag-row">`;
+      ex.muscles_worked.forEach(m => { h += `<span class="tag muscle">💪 ${m}</span>`; });
+      h += `</div>`;
+    }
+    if (ex.steps && ex.steps.length) {
+      h += `<div class="section-label">How To Do It</div><ol class="step-list">`;
+      ex.steps.forEach(s => { h += `<li>${s}</li>`; });
+      h += `</ol>`;
+    }
+    if (ex.common_mistakes && ex.common_mistakes.length) {
+      h += `<div class="section-label">❌ Common Mistakes</div><div class="tag-row">`;
+      ex.common_mistakes.forEach(m => { h += `<span class="tag mistake">${m}</span>`; });
+      h += `</div>`;
+    }
+    if (ex.safety_tips && ex.safety_tips.length) {
+      h += `<div class="section-label">✅ Safety Tips</div><div class="tag-row">`;
+      ex.safety_tips.forEach(t => { h += `<span class="tag safety">${t}</span>`; });
+      h += `</div>`;
+    }
+    h += `</div>`;
+    return h;
+  }
+
+  function renderEquipmentItem(item) {
+    const analysis = item.analysis || {};
+    const exercises = analysis.exercises || [];
+    const difficulty = analysis.difficulty || '';
+    const safetyWarnings = analysis.safety_warnings || [];
+    let h = `<div class="result-card">`;
+    h += `<div class="equipment-name">${item.name} <span class="badge ${item.category}">${item.category.replace('_',' ')}</span></div>`;
+    if (difficulty) {
+      h += `<div style="margin-bottom:10px"><span class="tag difficulty">${difficulty}</span></div>`;
+    }
+    if (analysis.primary_muscles && analysis.primary_muscles.length) {
+      h += `<div class="tag-row">`;
+      analysis.primary_muscles.forEach(m => { h += `<span class="tag muscle">💪 ${m}</span>`; });
+      h += `</div>`;
+    }
+    if (exercises.length) {
+      h += `<hr style="border:none;border-top:1px solid rgba(255,255,255,.06);margin:14px 0">`;
+      h += `<div style="font-size:0.8rem;color:var(--text-dim);font-weight:600;margin-bottom:10px">🏋️ EXERCISES (${exercises.length})</div>`;
+      exercises.forEach(ex => { h += renderExerciseCard(ex); });
+    }
+    if (safetyWarnings.length) {
+      h += `<div class="safety-box"><h4>⚠️ Safety Warnings</h4><ul>`;
+      safetyWarnings.forEach(w => { h += `<li>${w}</li>`; });
+      h += `</ul></div>`;
+    }
+    if (!exercises.length && !safetyWarnings.length) {
+      h += `<div class="error-box">⚠️ Could not identify this equipment. Try a clearer shot.</div>`;
+    }
+    h += `</div>`;
+    return h;
+  }
+
+  function renderResults(data) {
+    let html = '';
+    if (data.vision_description && !data.vision_description.includes('error')) {
+      html += `<div class="vision-desc"><strong>AI sees:</strong> ${data.vision_description}</div>`;
+    }
+    if (data.results && data.results.length) {
+      if (data.equipment_count > 1) {
+        html += `<div class="equipment-count-badge">🔍 ${data.equipment_count} equipment detected</div>`;
+      }
+      html += `<div class="equipment-grid">`;
+      data.results.forEach(item => { html += renderEquipmentItem(item); });
+      html += `</div>`;
+    } else if (data.analysis) {
+      html += `<div class="equipment-grid">`;
+      html += renderEquipmentItem({
+        name: data.analysis.equipment_name || 'Detected Equipment',
+        category: data.analysis.category || 'unknown',
+        analysis: data.analysis
+      });
+      html += `</div>`;
+    } else {
+      html += `<div class="error-box" style="max-width:600px;margin:0 auto">⚠️ Could not identify equipment from the photo. Try a clearer shot with the equipment well-lit and centered.</div>`;
+    }
+    resultsDiv.innerHTML = html;
+    resultsDiv.style.display = 'block';
+    resultsDiv.classList.add('visible');
+    resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  updateAnalyzeBtn();
+</script>
+
+</body>
+</html>
